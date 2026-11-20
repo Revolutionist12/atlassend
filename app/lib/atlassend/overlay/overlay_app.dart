@@ -375,17 +375,6 @@ class _EdgeGlowPainter extends CustomPainter {
         ..strokeWidth = 46 + 30 * travel
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 34),
     );
-    // Thin, brighter line on the very edge while the glow is still there.
-    if (travel < 0.6) {
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..shader = shader
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 5
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
-    }
   }
 
   @override
