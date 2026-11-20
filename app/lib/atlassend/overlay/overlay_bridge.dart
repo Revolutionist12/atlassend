@@ -5,7 +5,7 @@ import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:localsend_app/atlassend/overlay/overlay_protocol.dart';
-import 'package:localsend_app/atlassend/theme/atlas_theme.dart';
+import 'package:localsend_app/atlassend/theme/atlas_theme_provider.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/state/server/receive_session_state.dart';
 import 'package:localsend_app/model/state/server/receiving_file.dart';
@@ -139,7 +139,8 @@ class AtlasOverlayBridge {
       cards: cards,
     );
 
-    final theme = atlasDefaultTheme;
+    final themeState = _container.read(atlasThemeProvider);
+    final theme = themeState.theme;
     _send([
       kMsgConfig,
       theme.bg.toARGB32(),
@@ -147,7 +148,7 @@ class AtlasOverlayBridge {
       theme.text.toARGB32(),
       theme.muted.toARGB32(),
       theme.accent.toARGB32(),
-      theme.accent.toARGB32(), // frame color; separately selectable in phase 2
+      themeState.frame.toARGB32(),
       turkish ? 'Tamamlandı' : 'Done',
       turkish ? 'Başarısız' : 'Failed',
       turkish ? 'Açılıyor…' : 'Opening…',

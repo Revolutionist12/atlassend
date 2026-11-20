@@ -3,17 +3,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:localsend_app/atlassend/atlas_identity.dart';
 import 'package:localsend_app/atlassend/overlay/overlay_app.dart';
 import 'package:localsend_app/atlassend/overlay/overlay_bridge.dart';
+import 'package:localsend_app/atlassend/theme/atlas_theme_provider.dart';
 import 'package:localsend_app/config/init.dart';
 import 'package:localsend_app/config/init_error.dart';
-import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
-import 'package:localsend_app/model/persistence/color_mode.dart';
 import 'package:localsend_app/pages/home_page.dart';
 import 'package:localsend_app/provider/local_ip_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
-import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
-import 'package:localsend_app/util/ui/dynamic_colors.dart';
 import 'package:localsend_app/widget/watcher/life_cycle_watcher.dart';
 import 'package:localsend_app/widget/watcher/shortcut_watcher.dart';
 import 'package:localsend_app/widget/watcher/tray_watcher.dart';
@@ -23,6 +20,7 @@ import 'package:localsend_isolates/isolate.dart';
 import 'package:refena_flutter/addons.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 import 'package:routerino/routerino.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:system_date_time_format/system_date_time_format.dart';
 
 Future<void> main(List<String> args) async {
@@ -36,6 +34,9 @@ Future<void> main(List<String> args) async {
     );
     return;
   }
+
+  // AtlasSend: theme preferences live in the same store as the upstream settings.
+  await container.set(atlasPrefsProvider.overrideWithValue(await SharedPreferences.getInstance()));
 
   runApp(
     RefenaScope.withContainer(
@@ -64,10 +65,9 @@ class LocalSendApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ref = context.ref;
-    final (themeMode, colorMode, customColor) = ref.watch(
-      settingsProvider.select((settings) => (settings.theme, settings.colorMode, settings.customColor)),
-    );
-    final dynamicColors = ref.watch(dynamicColorsProvider);
+    // AtlasSend: the colors come from the selected AtlasSend theme (light or dark by itself).
+    final atlasTheme = ref.watch(atlasThemeProvider.select((s) => s.theme));
+    final materialTheme = atlasMaterialTheme(atlasTheme);
     return TrayWatcher(
       child: WindowWatcher(
         child: LifeCycleWatcher(
@@ -101,9 +101,9 @@ class LocalSendApp extends StatelessWidget {
               supportedLocales: AppLocaleUtils.supportedLocales,
               localizationsDelegates: GlobalMaterialLocalizations.delegates,
               debugShowCheckedModeBanner: false,
-              theme: getTheme(colorMode, customColor, Brightness.light, dynamicColors),
-              darkTheme: getTheme(colorMode, customColor, Brightness.dark, dynamicColors),
-              themeMode: colorMode == ColorMode.oled ? ThemeMode.dark : themeMode,
+              theme: materialTheme,
+              darkTheme: materialTheme,
+              themeMode: atlasTheme.isDark ? ThemeMode.dark : ThemeMode.light,
               builder: (context, child) => WindowBrightnessWatcher(child: child!),
               navigatorKey: context.read(navigationProvider).key,
               home: RouterinoHome(
