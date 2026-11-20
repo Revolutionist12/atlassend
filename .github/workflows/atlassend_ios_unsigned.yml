@@ -1,0 +1,64 @@
+# AtlasSend: builds an UNSIGNED iOS app (.ipa) on a macOS runner.
+# The .ipa is signed on the user's side by AltStore / SideStore with their own
+# Apple ID, so no certificates or secrets are needed here.
+name: AtlasSend iOS (unsigned IPA)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "phase-5/**"
+
+env:
+  FLUTTER_VERSION: "3.47.9"
+
+jobs:
+  build_ios:
+    runs-on: macos-latest
+    timeout-minutes: 75
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+
+      # rust-toolchain.toml pins the Rust version; rustup installs it on first use.
+      - name: Rust toolchain for iOS
+        run: |
+          rustup show active-toolchain
+          rustup target add aarch64-apple-ios
+
+      - name: Dependencies
+        working-directory: app
+        run: flutter pub get
+
+      # Same as upstream CI: cargokit's build tool resolves standalone.
+      - name: Cargokit build tool dependencies
+        working-directory: packages/localsend_isolates/rust_builder/cargokit/build_tool
+        run: flutter pub get
+
+      - name: Build (no code signing)
+        working-directory: app
+        run: flutter build ios --release --no-codesign
+
+      - name: Package IPA
+        working-directory: app/build/ios/iphoneos
+        run: |
+          rm -rf Payload
+          mkdir Payload
+          cp -R Runner.app Payload/
+          zip -qry AtlasSend-unsigned.ipa Payload
+          ls -la AtlasSend-unsigned.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v6
+        with:
+          name: AtlasSend-ios-unsigned
+          path: app/build/ios/iphoneos/AtlasSend-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
