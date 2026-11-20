@@ -150,6 +150,7 @@ class AtlasOverlayBridge {
       theme.accent.toARGB32(), // frame color; separately selectable in phase 2
       turkish ? 'Tamamlandı' : 'Done',
       turkish ? 'Başarısız' : 'Failed',
+      turkish ? 'Açılıyor…' : 'Opening…',
     ]);
     for (final card in cards) {
       _actions[card.id] = _CardAction(folder: session.destinationDirectory);

@@ -13,9 +13,6 @@ const wchar_t kWindowTitle[] = L"AtlasSend Overlay";
 const char kWindowChannel[] = "atlassend/overlay_window";
 const char kHostChannel[] = "atlassend/overlay_host";
 
-// Width of the overlay column in logical pixels. The height is the work area
-// of the primary monitor, so cards can fly in from the bottom edge.
-const int kLogicalWidth = 640;
 
 std::unique_ptr<AtlasOverlayWindow> g_overlay;
 std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> g_host_channel;
@@ -96,14 +93,18 @@ bool AtlasOverlayWindow::Create() {
   // Fails with ERROR_CLASS_ALREADY_EXISTS on the second start, which is fine.
   RegisterClass(&window_class);
 
-  RECT work{};
-  SystemParametersInfo(SPI_GETWORKAREA, 0, &work, 0);
-  const HMONITOR monitor = MonitorFromRect(&work, MONITOR_DEFAULTTOPRIMARY);
-  const double scale = FlutterDesktopGetDpiForMonitor(monitor) / 96.0;
-  const int width = static_cast<int>(kLogicalWidth * scale);
-  const int height = work.bottom - work.top;
-  const int x = work.left + ((work.right - work.left) - width) / 2;
-  const int y = work.top;
+  // The whole primary monitor (taskbar included): the edge glow hugs the real
+  // screen edges and the cards sit in the middle. The window region keeps
+  // everything else unpainted and click-through.
+  const POINT origin{0, 0};
+  const HMONITOR monitor = MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY);
+  MONITORINFO info{sizeof(MONITORINFO)};
+  GetMonitorInfo(monitor, &info);
+  const RECT screen = info.rcMonitor;
+  const int width = screen.right - screen.left;
+  const int height = screen.bottom - screen.top;
+  const int x = screen.left;
+  const int y = screen.top;
 
   // WS_EX_NOACTIVATE: never takes focus. WS_EX_TOOLWINDOW: no taskbar button,
   // not in Alt+Tab. WS_EX_TOPMOST: always on top.

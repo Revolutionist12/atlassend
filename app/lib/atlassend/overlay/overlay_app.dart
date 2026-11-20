@@ -10,14 +10,25 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:localsend_app/atlassend/overlay/overlay_protocol.dart';
 
-/// Card width in logical pixels (the overlay window is 640 wide).
+/// Card width in logical pixels (the overlay window covers the whole primary monitor).
 const _cardWidth = 400.0;
 
 /// Space around a card that stays inside the window region, so the glow is not cut off.
 const _glowMargin = 40.0;
 
+/// How far the screen edge glow reaches into the screen (logical pixels). While it plays,
+/// this band along all four edges is part of the window region.
+const _edgeBand = 240.0;
+
+/// One run of the screen edge glow: it lights up along the edges, travels inward and fades.
+const _edgeDuration = Duration(milliseconds: 2200);
+
 const _doneLifetime = Duration(seconds: 4);
 const _failedLifetime = Duration(seconds: 7);
+
+/// After a click the card shows "opening" for this long, so the user sees it reacted
+/// while the target application starts (Photos needs about a second).
+const _openingLinger = Duration(milliseconds: 900);
 
 /// Entry point of the OVERLAY engine (see `atlasOverlayMain` in main.dart).
 ///
@@ -51,6 +62,7 @@ class _Palette {
   final Color frame;
   final String doneLabel;
   final String failedLabel;
+  final String openingLabel;
 
   const _Palette({
     required this.surface,
@@ -60,6 +72,7 @@ class _Palette {
     required this.frame,
     required this.doneLabel,
     required this.failedLabel,
+    required this.openingLabel,
   });
 
   /// "Bakır gece", used until the main isolate sends the real configuration.
@@ -71,9 +84,24 @@ class _Palette {
     frame: Color(0xFFD08C4E),
     doneLabel: 'Done',
     failedLabel: 'Failed',
+    openingLabel: 'Opening…',
   );
 
   static const error = Color(0xFFE5484D);
+
+  /// The colors of the screen edge glow: the frame color plus three hues around it,
+  /// so every theme gets its own harmonic "few colors".
+  List<Color> get edgeColors {
+    final base = HSLColor.fromColor(frame);
+    final saturation = base.saturation < 0.15 ? base.saturation : base.saturation.clamp(0.7, 1.0);
+    HSLColor shifted(double degrees, double lightness) => HSLColor.fromAHSL(1, (base.hue + degrees) % 360, saturation, lightness);
+    return [
+      frame,
+      shifted(40, 0.62).toColor(),
+      shifted(-50, 0.60).toColor(),
+      shifted(175, 0.62).toColor(),
+    ];
+  }
 }
 
 class _OverlayApp extends StatefulWidget {
@@ -83,7 +111,7 @@ class _OverlayApp extends StatefulWidget {
   State<_OverlayApp> createState() => _OverlayAppState();
 }
 
-class _OverlayAppState extends State<_OverlayApp> with SingleTickerProviderStateMixin {
+class _OverlayAppState extends State<_OverlayApp> with TickerProviderStateMixin {
   static const _window = MethodChannel(kOverlayWindowChannel);
 
   final _port = ReceivePort();
@@ -94,6 +122,21 @@ class _OverlayAppState extends State<_OverlayApp> with SingleTickerProviderState
   /// Slow "breathing" of the frame glow. Only runs while something is being received,
   /// so a finished card costs no frames while it waits to disappear.
   late final AnimationController _breath = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400));
+
+  /// The multi-color glow along the screen edges that greets an incoming transfer.
+  late final AnimationController _edge = AnimationController(vsync: this, duration: _edgeDuration)
+    ..addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        // Shrink the window region back to the cards (or to nothing).
+        _lastRegion = const [];
+        if (_cards.isEmpty) {
+          // ignore: discarded_futures
+          _window.invokeMethod<void>('setRegion', {'rects': const <int>[]});
+        } else {
+          SchedulerBinding.instance.scheduleFrame();
+        }
+      }
+    });
 
   List<int> _lastRegion = const [];
   bool _visible = false;
@@ -125,9 +168,14 @@ class _OverlayAppState extends State<_OverlayApp> with SingleTickerProviderState
             frame: Color(message[6] as int),
             doneLabel: message[7] as String,
             failedLabel: message[8] as String,
+            openingLabel: message.length > 9 ? message[9] as String : _Palette.fallback.openingLabel,
           );
         });
       case kMsgAdd:
+        if (!_edge.isAnimating) {
+          // ignore: discarded_futures
+          _edge.forward(from: 0);
+        }
         setState(() {
           _cards.add(
             _CardModel(
@@ -183,7 +231,7 @@ class _OverlayAppState extends State<_OverlayApp> with SingleTickerProviderState
   void _onCardGone(_CardModel card) {
     setState(() => _cards.remove(card));
     _syncBreath();
-    if (_cards.isEmpty) {
+    if (_cards.isEmpty && !_edge.isAnimating) {
       _lastRegion = const [];
       _visible = false;
       // ignore: discarded_futures
@@ -192,14 +240,22 @@ class _OverlayAppState extends State<_OverlayApp> with SingleTickerProviderState
     }
   }
 
-  /// Keeps the window region equal to the cards (plus glow): the rest of the
-  /// overlay window is neither painted nor clickable.
+  /// Keeps the window region equal to the cards (plus their glow, plus the edge
+  /// band while the edge glow plays): the rest of the overlay window is neither
+  /// painted nor clickable.
   void _updateRegion() {
-    if (_cards.isEmpty) {
+    if (_cards.isEmpty && !_edge.isAnimating) {
       return;
     }
-    final dpr = PlatformDispatcher.instance.views.first.devicePixelRatio;
+    final view = PlatformDispatcher.instance.views.first;
+    final dpr = view.devicePixelRatio;
     final region = <int>[];
+    if (_edge.isAnimating) {
+      final w = view.physicalSize.width.round();
+      final h = view.physicalSize.height.round();
+      final band = (_edgeBand * dpr).round();
+      region.addAll([0, 0, w, band, 0, h - band, w, h, 0, 0, band, h, w - band, 0, w, h]);
+    }
     for (final card in _cards) {
       final box = card.key.currentState?.cardBox;
       if (box == null || !box.attached || !box.hasSize) {
@@ -229,6 +285,7 @@ class _OverlayAppState extends State<_OverlayApp> with SingleTickerProviderState
   void dispose() {
     _port.close();
     _breath.dispose();
+    _edge.dispose();
     super.dispose();
   }
 
@@ -238,33 +295,101 @@ class _OverlayAppState extends State<_OverlayApp> with SingleTickerProviderState
       textDirection: TextDirection.ltr,
       child: DefaultTextStyle(
         style: TextStyle(
-          fontFamily: 'Segoe UI Variable Display',
+          fontFamily: 'Inter',
           fontFamilyFallback: const ['Segoe UI'],
           color: _palette.text,
           fontSize: 14,
+          letterSpacing: -0.1,
           decoration: TextDecoration.none,
         ),
-        // Everything outside the cards stays fully transparent.
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final card in _cards)
-                _CardView(
-                  key: card.key,
-                  model: card,
-                  palette: _palette,
-                  breath: _breath,
-                  onOpen: () => _mainPort?.send([kMsgOpen, card.id]),
-                  onReveal: () => _mainPort?.send([kMsgReveal, card.id]),
-                  onGone: () => _onCardGone(card),
+        // Everything outside the cards (and the edge glow) stays fully transparent.
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: CustomPaint(painter: _EdgeGlowPainter(_edge, _palette.edgeColors)),
                 ),
-            ],
-          ),
+              ),
+            ),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final card in _cards)
+                    _CardView(
+                      key: card.key,
+                      model: card,
+                      palette: _palette,
+                      breath: _breath,
+                      onOpen: () => _mainPort?.send([kMsgOpen, card.id]),
+                      onReveal: () => _mainPort?.send([kMsgReveal, card.id]),
+                      onGone: () => _onCardGone(card),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+/// The greeting of an incoming transfer: a few colors light up along all four
+/// screen edges, rotate slowly, then travel inward and dissolve.
+class _EdgeGlowPainter extends CustomPainter {
+  final Animation<double> progress;
+  final List<Color> colors;
+
+  _EdgeGlowPainter(this.progress, this.colors) : super(repaint: progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = progress.value;
+    if (t <= 0 || t >= 1) {
+      return;
+    }
+
+    // 0..0.15 light up, 0.15..0.40 hold at the edge, 0.40..1 move inward while fading.
+    final fadeIn = Curves.easeOut.transform((t / 0.15).clamp(0.0, 1.0));
+    final travel = Curves.easeInOutCubic.transform(((t - 0.40) / 0.60).clamp(0.0, 1.0));
+    final opacity = fadeIn * (1 - travel);
+    if (opacity <= 0.001) {
+      return;
+    }
+
+    final inset = 6 + 120 * travel;
+    final rect = (Offset.zero & size).deflate(inset);
+    final shader = SweepGradient(
+      colors: [...colors, colors.first].map((c) => c.withValues(alpha: c.a * opacity)).toList(),
+      transform: GradientRotation(t * 2.4),
+    ).createShader(Offset.zero & size);
+
+    // Wide, soft band: the glow that fades toward the middle of the screen.
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = shader
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 46 + 30 * travel
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 34),
+    );
+    // Thin, brighter line on the very edge while the glow is still there.
+    if (travel < 0.6) {
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = shader
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 5
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_EdgeGlowPainter oldDelegate) => !listEquals(oldDelegate.colors, colors);
 }
 
 class _CardView extends StatefulWidget {
@@ -305,6 +430,9 @@ class _CardViewState extends State<_CardView> with TickerProviderStateMixin {
   bool _hovered = false;
   bool _dismissing = false;
 
+  /// The card was clicked and the file is being opened.
+  bool _opening = false;
+
   /// The painted card, used by the app to compute the window region.
   RenderBox? get cardBox => _boxKey.currentContext?.findRenderObject() as RenderBox?;
 
@@ -336,6 +464,9 @@ class _CardViewState extends State<_CardView> with TickerProviderStateMixin {
   }
 
   void _scheduleDismiss() {
+    if (_opening) {
+      return;
+    }
     _dismissTimer?.cancel();
     final state = widget.model.state.value;
     if (state == _CardState.receiving || _hovered) {
@@ -405,7 +536,7 @@ class _CardViewState extends State<_CardView> with TickerProviderStateMixin {
                       model.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: -0.3),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -433,6 +564,16 @@ class _CardViewState extends State<_CardView> with TickerProviderStateMixin {
           SizedBox(
             height: 18,
             child: switch (state) {
+              _ when _opening => Row(
+                children: [
+                  Icon(Icons.open_in_new_rounded, size: 16, color: palette.accent),
+                  const SizedBox(width: 6),
+                  Text(
+                    palette.openingLabel,
+                    style: TextStyle(color: palette.accent, fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
               _CardState.receiving => Align(
                 alignment: Alignment.centerLeft,
                 child: ValueListenableBuilder<double>(
@@ -516,30 +657,41 @@ class _CardViewState extends State<_CardView> with TickerProviderStateMixin {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
+          if (_opening) {
+            return;
+          }
           widget.onOpen();
-          // ignore: discarded_futures
-          dismiss();
+          // Immediate feedback: the card presses in and says "opening" while the
+          // target application starts, then goes away.
+          _dismissTimer?.cancel();
+          setState(() => _opening = true);
+          _dismissTimer = Timer(_openingLinger, dismiss);
         },
         onSecondaryTap: widget.onReveal,
-        child: AnimatedBuilder(
-          // Only the frame and its glow repaint while the glow "breathes".
-          animation: widget.breath,
-          builder: (context, child) => DecoratedBox(
-            key: _boxKey,
-            decoration: BoxDecoration(
-              color: palette.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: frame, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: frame.withValues(alpha: state == _CardState.receiving ? 0.28 + 0.27 * widget.breath.value : 0.42),
-                  blurRadius: 26,
-                ),
-              ],
+        child: AnimatedScale(
+          scale: _opening ? 0.97 : 1,
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          child: AnimatedBuilder(
+            // Only the frame and its glow repaint while the glow "breathes".
+            animation: widget.breath,
+            builder: (context, child) => DecoratedBox(
+              key: _boxKey,
+              decoration: BoxDecoration(
+                color: palette.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: frame, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: frame.withValues(alpha: state == _CardState.receiving ? 0.28 + 0.27 * widget.breath.value : 0.42),
+                    blurRadius: 26,
+                  ),
+                ],
+              ),
+              child: child,
             ),
-            child: child,
+            child: SizedBox(width: _cardWidth, child: content),
           ),
-          child: SizedBox(width: _cardWidth, child: content),
         ),
       ),
     );

@@ -17,7 +17,7 @@ const kOverlayWindowChannel = 'atlassend/overlay_window';
 
 // --- main -> overlay -------------------------------------------------------
 
-/// `[config, bg, surface, text, muted, accent, frame, doneLabel, failedLabel]`, colors as ARGB ints.
+/// `[config, bg, surface, text, muted, accent, frame, doneLabel, failedLabel, openingLabel]`, colors as ARGB ints.
 const kMsgConfig = 'config';
 
 /// `[add, cardId, title, subtitle, badge, fling]`.

@@ -35,7 +35,7 @@ ThemeData getTheme(ColorMode colorMode, Color customColor, Brightness brightness
       AppLocale.ko => 'Malgun Gothic',
       AppLocale.zhCn => 'Microsoft YaHei UI',
       AppLocale.zhHk || AppLocale.zhTw => 'Microsoft JhengHei UI',
-      _ => 'Segoe UI Variable Display',
+      _ => 'Inter', // AtlasSend: bundled font (assets/fonts/inter)
     };
   } else if (checkPlatform([TargetPlatform.linux])) {
     fontFamily = switch (LocaleSettings.currentLocale) {
