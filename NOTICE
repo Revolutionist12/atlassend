@@ -1,0 +1,22 @@
+AtlasSend
+=========
+
+AtlasSend is a fork of LocalSend (https://github.com/localsend/localsend).
+
+    LocalSend
+    Copyright (C) 2022-2026 Tien Do Nam and the LocalSend contributors
+    Licensed under the Apache License, Version 2.0
+
+The original license text is kept unchanged in the LICENSE file.
+
+Changes made by AtlasSend
+-------------------------
+
+- The app is renamed to "AtlasSend" and uses its own identifiers and settings
+  location, so it can be installed next to the original LocalSend.
+- A transparent overlay window on Windows shows incoming files as cards.
+- New code lives under app/lib/atlassend/ and in the files prefixed with
+  "atlas_" in app/windows/runner/.
+
+AtlasSend stays compatible with the LocalSend protocol and is not affiliated
+with or endorsed by the LocalSend project.

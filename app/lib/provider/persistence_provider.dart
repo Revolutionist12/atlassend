@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:localsend_app/atlassend/atlas_identity.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/persistence/color_mode.dart';
 import 'package:localsend_app/model/persistence/favorite_device.dart';
@@ -11,7 +12,6 @@ import 'package:localsend_app/model/persistence/quick_save_mode.dart';
 import 'package:localsend_app/model/persistence/receive_history_entry.dart';
 import 'package:localsend_app/model/send_mode.dart';
 import 'package:localsend_app/provider/window_dimensions_provider.dart';
-import 'package:localsend_app/util/alias_generator.dart';
 import 'package:localsend_app/util/native/autostart_helper.dart';
 import 'package:localsend_app/util/native/context_menu_helper.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
@@ -34,12 +34,13 @@ final _logger = Logger('PersistenceService');
 
 String get _windowsFile {
   final appData = Platform.environment['APPDATA'];
-  return '$appData\\LocalSend\\settings.json';
+  return '$appData\\$kAtlasAppName\\settings.json';
 }
 
 String get _windowsLegacyFile {
   final appData = Platform.environment['APPDATA'];
-  return '$appData\\org.localsend\\localsend_app\\shared_preferences.json';
+  // AtlasSend: never import the settings (and with them the device identity) of an original LocalSend installation.
+  return '$appData\\$kAtlasAppName\\legacy\\shared_preferences.json';
 }
 
 // Version of the storage
@@ -170,7 +171,7 @@ class PersistenceService {
     }
 
     if (prefs.getString(_aliasKey) == null) {
-      await prefs.setString(_aliasKey, generateRandomAlias());
+      await prefs.setString(_aliasKey, atlasDefaultAlias());
     }
 
     if (prefs.getString(_securityContext) == null) {
@@ -280,7 +281,7 @@ class PersistenceService {
   }
 
   String getAlias() {
-    return _prefs.getString(_aliasKey) ?? generateRandomAlias();
+    return _prefs.getString(_aliasKey) ?? atlasDefaultAlias();
   }
 
   Future<void> setAlias(String alias) async {

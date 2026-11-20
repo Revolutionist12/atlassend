@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:localsend_app/atlassend/atlas_identity.dart';
 import 'package:localsend_app/util/native/macos_channel.dart';
 import 'package:logging/logging.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -111,7 +112,7 @@ Future<bool> isAutoStartHidden() async {
   }
 }
 
-const _windowsRegistryKeyValue = 'LocalSend';
+const _windowsRegistryKeyValue = kAtlasAppName;
 
 RegistryKey _getWindowsRegistryKey() {
   return Registry.openPath(

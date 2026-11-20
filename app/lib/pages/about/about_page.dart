@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:localsend_app/atlassend/atlas_identity.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/pages/debug/debug_page.dart';
 import 'package:localsend_app/util/i18n.dart';
@@ -32,6 +33,12 @@ class AboutPage extends StatelessWidget {
         children: [
           const SizedBox(height: 20),
           const LocalSendLogo(withText: true),
+          // AtlasSend: attribution required by the Apache License 2.0 of the original project.
+          const Text(
+            kAtlasBasedOn,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           Text(
             '© ${DateTime.now().year} Tien Do Nam',
             textAlign: TextAlign.center,
