@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:localsend_app/atlassend/atlas_identity.dart';
+import 'package:localsend_app/atlassend/overlay/overlay_app.dart';
+import 'package:localsend_app/atlassend/overlay/overlay_bridge.dart';
 import 'package:localsend_app/config/init.dart';
 import 'package:localsend_app/config/init_error.dart';
 import 'package:localsend_app/config/theme.dart';
@@ -44,7 +47,16 @@ Future<void> main(List<String> args) async {
       ),
     ),
   );
+
+  // AtlasSend: mirror incoming transfers into the overlay window (Windows only).
+  AtlasOverlayBridge.start(container);
 }
+
+/// Entry point of the overlay engine. The Windows runner starts a second
+/// Flutter engine with this function instead of [main]; it has to live in the
+/// root library to be found by name.
+@pragma('vm:entry-point')
+void atlasOverlayMain() => atlasOverlayAppMain();
 
 class LocalSendApp extends StatelessWidget {
   const LocalSendApp();
@@ -84,7 +96,7 @@ class LocalSendApp extends StatelessWidget {
           },
           child: ShortcutWatcher(
             child: MaterialApp(
-              title: t.appName,
+              title: kAtlasAppName,
               locale: TranslationProvider.of(context).flutterLocale,
               supportedLocales: AppLocaleUtils.supportedLocales,
               localizationsDelegates: GlobalMaterialLocalizations.delegates,

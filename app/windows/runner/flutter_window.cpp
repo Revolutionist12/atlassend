@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include "atlas_overlay_window.h"
 #include "flutter/generated_plugin_registrant.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
@@ -25,11 +26,14 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  // AtlasSend: lets the Dart side start/stop the overlay window on demand.
+  AtlasOverlayHost::Register(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
   return true;
 }
 
 void FlutterWindow::OnDestroy() {
+  AtlasOverlayHost::Shutdown();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
