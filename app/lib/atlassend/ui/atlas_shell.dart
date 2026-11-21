@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/atlassend/atlas_identity.dart';
@@ -12,6 +14,9 @@ import 'package:localsend_app/pages/home_page.dart';
 
 /// Wide windows get a sidebar (like macOS apps), narrow ones a tab bar (like iOS apps).
 const _sidebarBreakpoint = 720.0;
+
+/// Distance of the floating tab bar to the left, right and bottom edge.
+const _barGap = 14.0;
 
 extension on HomeTab {
   IconData get outlineIcon => switch (this) {
@@ -71,9 +76,11 @@ class AtlasShell extends StatelessWidget {
               ],
             );
           }
-          // Phones: the content runs under a floating liquid glass tab bar.
+          // Phones: the content runs under a floating liquid glass tab bar. The gap to the
+          // left, right and bottom screen edge is the same (_barGap).
           final media = MediaQuery.of(context);
-          final barBottom = media.padding.bottom + 10;
+          // The home indicator sits in the bottom ~13 pt, so a bar 14 pt above the edge clears it.
+          final barBottom = math.max(_barGap, media.padding.bottom - 20);
           return Stack(
             children: [
               MediaQuery(
@@ -81,11 +88,12 @@ class AtlasShell extends StatelessWidget {
                 child: pages,
               ),
               Positioned(
-                left: 14,
-                right: 14,
+                left: _barGap,
+                right: _barGap,
                 bottom: barBottom,
                 child: LiquidGlassBar(
-                  items: [for (final tab in HomeTab.values) LiquidGlassItem(_label(tab), icon: tab.filledIcon)],
+                  expand: true,
+                  items: [for (final tab in HomeTab.values) LiquidGlassItem(_label(tab))],
                   selected: currentTab.index,
                   onSelect: (i) => onSelect(HomeTab.values[i]),
                 ),

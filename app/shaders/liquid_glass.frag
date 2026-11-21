@@ -57,15 +57,15 @@ void main() {
     float s = max(-d, 0.0); // depth inside the lens (0 at the rim)
 
     // (1) Top / bottom flats: the rim looks slightly past itself.
-    float Ev = 18.0;
-    float A = 4.5;
+    float Ev = 10.0; // thickness of the refracting rim (the original used 18)
+    float A = 2.6;
     float uv = clamp(s / Ev, 0.0, 1.0);
     float hv = 0.12 * uv + 0.88 * uv * uv * (2.0 - uv);
     float fv = (s < Ev) ? (-A + (Ev + A) * hv) : s;
 
     // (2) Rounded ends: content is pulled inward and stretched toward the rim,
     //     so letters bend along the edge.
-    float Eh = 22.0;
+    float Eh = 12.0;
     float B = 0.46 * Eh;
     float uh = clamp(s / Eh, 0.0, 1.0);
     float fh = s + B * (1.0 - uh) * (1.0 - uh);

@@ -146,6 +146,7 @@ class AtlasSendScreen extends StatelessWidget {
                 width: double.infinity,
                 child: LiquidGlassBar(
                   floating: false,
+                  expand: true,
                   items: [LiquidGlassItem(t.sendTab.sendModes.single), LiquidGlassItem(t.sendTab.sendModes.multiple)],
                   selected: vm.sendMode == SendMode.multiple ? 1 : 0,
                   onSelect: (i) async => vm.onTapSendMode(context, i == 1 ? SendMode.multiple : SendMode.single),
