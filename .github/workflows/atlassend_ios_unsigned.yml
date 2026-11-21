@@ -1,4 +1,4 @@
-# AtlasSend: builds an UNSIGNED iOS app (.ipa) on a macOS runner.
+﻿# AtlasSend: builds an UNSIGNED iOS app (.ipa) on a macOS runner.
 # The .ipa is signed on the user's side by AltStore / SideStore with their own
 # Apple ID, so no certificates or secrets are needed here.
 name: AtlasSend iOS (unsigned IPA)
@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - "phase-5/**"
+      - "phase-6/**"
 
 env:
   FLUTTER_VERSION: "3.47.9"
