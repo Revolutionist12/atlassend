@@ -121,8 +121,8 @@ class AtlasGroup extends StatelessWidget {
                 style: TextStyle(fontSize: 12.5, color: theme.muted, letterSpacing: 0.2, fontWeight: FontWeight.w500),
               ),
             ),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+          ClipRSuperellipse(
+            borderRadius: BorderRadius.circular(kAtlasGroupRadius),
             child: ColoredBox(
               color: theme.surface,
               child: Column(children: rows),
@@ -152,7 +152,10 @@ class AtlasIconTile extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(size * 0.24)),
+      decoration: ShapeDecoration(
+        color: color,
+        shape: RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(size * 0.26)),
+      ),
       child: Icon(icon, size: size * 0.62, color: Colors.white),
     );
   }
@@ -187,9 +190,9 @@ class AtlasRow extends StatelessWidget {
     return AtlasPressable(
       onTap: onTap,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 46),
+        constraints: const BoxConstraints(minHeight: 52),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
           child: Row(
             children: [
               if (leading != null) ...[leading!, const SizedBox(width: 14)],

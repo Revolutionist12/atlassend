@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:localsend_app/config/theme.dart';
@@ -173,7 +174,7 @@ class _ReceivePageState extends State<ReceivePage> with Refena {
                                                 style: TextButton.styleFrom(
                                                   foregroundColor: Theme.of(context).colorScheme.onSurface,
                                                 ),
-                                                icon: Icon(Icons.verified_user),
+                                                icon: Icon(CupertinoIcons.checkmark_shield_fill),
                                                 label: Text(t.verifyPage.title),
                                               ),
                                               TextButton.icon(
@@ -183,7 +184,7 @@ class _ReceivePageState extends State<ReceivePage> with Refena {
                                                 onPressed: () async {
                                                   await context.push(() => ReceiveOptionsPage(vm));
                                                 },
-                                                icon: const Icon(Icons.settings),
+                                                icon: const Icon(CupertinoIcons.gear_solid),
                                                 label: Text(t.receiveOptionsPage.title),
                                               ),
                                             ],
@@ -222,7 +223,7 @@ class _ReceivePageState extends State<ReceivePage> with Refena {
                                                         fingerprint: CombinedFingerprint.load(context, vm.sender.fingerprint),
                                                       ),
                                                     ),
-                                                    icon: Icon(Icons.verified_user),
+                                                    icon: Icon(CupertinoIcons.checkmark_shield_fill),
                                                     label: Text(t.verifyPage.title),
                                                   ),
                                                 ElevatedButton.icon(
@@ -236,7 +237,7 @@ class _ReceivePageState extends State<ReceivePage> with Refena {
                                                     vm.onAccept();
                                                     context.global.dispatch(NavigateAction.popUntil<WebSharePage>());
                                                   },
-                                                  icon: Icon(Icons.copy),
+                                                  icon: Icon(CupertinoIcons.doc_on_doc),
                                                   label: Text(t.general.copy),
                                                 ),
                                                 if (vm.isLink)
@@ -251,7 +252,7 @@ class _ReceivePageState extends State<ReceivePage> with Refena {
                                                       vm.onAccept();
                                                       context.global.dispatch(NavigateAction.popUntil<WebSharePage>());
                                                     },
-                                                    icon: Icon(Icons.open_in_new),
+                                                    icon: Icon(CupertinoIcons.arrow_up_right_square),
                                                     label: Text(t.general.open),
                                                   ),
                                               ],
@@ -299,7 +300,7 @@ class _Actions extends StatelessWidget {
             vm.onAccept();
             context.global.dispatch(NavigateAction.popUntil<WebSharePage>());
           },
-          icon: const Icon(Icons.close),
+          icon: const Icon(CupertinoIcons.xmark),
           label: Text(t.general.close),
         ),
       );
@@ -322,7 +323,7 @@ class _Actions extends StatelessWidget {
                 vm.onClose();
                 context.global.dispatch(NavigateAction.popUntil<WebSharePage>());
               },
-              icon: const Icon(Icons.check_circle),
+              icon: const Icon(CupertinoIcons.checkmark_alt_circle_fill),
               label: Text(t.general.close),
             ),
           ),
@@ -367,7 +368,7 @@ class _Actions extends StatelessWidget {
                   foregroundColor: colorMode == ColorMode.yaru ? Theme.of(context).colorScheme.onSurface : Theme.of(context).colorScheme.onError,
                 ),
                 onPressed: decline,
-                icon: const Icon(Icons.close),
+                icon: const Icon(CupertinoIcons.xmark),
                 label: Text(t.general.decline),
               ),
               const SizedBox(width: 20),
@@ -377,7 +378,7 @@ class _Actions extends StatelessWidget {
                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 ),
                 onPressed: onAccept,
-                icon: const Icon(Icons.check_circle),
+                icon: const Icon(CupertinoIcons.checkmark_alt_circle_fill),
                 label: Text(t.general.accept),
               ),
             ],

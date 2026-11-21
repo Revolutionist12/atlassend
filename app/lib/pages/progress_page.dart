@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
@@ -431,7 +432,7 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
                                         },
                                         child: Padding(
                                           padding: const EdgeInsets.symmetric(horizontal: 5),
-                                          child: Icon(Icons.info, color: Theme.of(context).colorScheme.warning, size: 20),
+                                          child: Icon(CupertinoIcons.info_circle_fill, color: Theme.of(context).colorScheme.warning, size: 20),
                                         ),
                                       ),
                                     ],
@@ -442,7 +443,7 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
                         ),
                         if (sendSession != null && fileStatus == FileStatus.failed)
                           IconButton(
-                            icon: const Icon(Icons.refresh),
+                            icon: const Icon(CupertinoIcons.arrow_clockwise),
                             onPressed: () async {
                               await ref
                                   .notifier(sendProvider)
@@ -530,13 +531,13 @@ class _ProgressPageState extends State<ProgressPage> with Refena {
                                 onPressed: () {
                                   setState(() => _advanced = !_advanced);
                                 },
-                                icon: const Icon(Icons.info),
+                                icon: const Icon(CupertinoIcons.info_circle_fill),
                                 label: Text(_advanced ? t.general.hide : t.general.advanced),
                               ),
                               TextButton.icon(
                                 style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurface),
                                 onPressed: () => _exit(closeSession: true),
-                                icon: Icon(status == SessionStatus.sending ? Icons.close : Icons.check_circle),
+                                icon: Icon(status == SessionStatus.sending ? CupertinoIcons.xmark : CupertinoIcons.checkmark_alt_circle_fill),
                                 label: Text(
                                   status == SessionStatus.sending
                                       ? t.general.cancel

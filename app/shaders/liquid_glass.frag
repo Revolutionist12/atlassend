@@ -17,6 +17,7 @@ uniform vec2 bb;     // bar half size
 uniform float br;    // bar corner radius
 uniform vec4 fill;   // glass body where nothing lies behind the lens (premultiplied)
 uniform vec4 rimCol; // rim highlight (premultiplied)
+uniform vec2 band;   // refracting band: x = flat top/bottom (Ev), y = rounded ends (Eh)
 
 uniform sampler2D tex;
 
@@ -57,15 +58,15 @@ void main() {
     float s = max(-d, 0.0); // depth inside the lens (0 at the rim)
 
     // (1) Top / bottom flats: the rim looks slightly past itself.
-    float Ev = 10.0; // thickness of the refracting rim (the original used 18)
-    float A = 2.6;
+    float Ev = band.x; // floating bar 18, inline control 10
+    float A = 0.25 * Ev;
     float uv = clamp(s / Ev, 0.0, 1.0);
     float hv = 0.12 * uv + 0.88 * uv * uv * (2.0 - uv);
     float fv = (s < Ev) ? (-A + (Ev + A) * hv) : s;
 
     // (2) Rounded ends: content is pulled inward and stretched toward the rim,
     //     so letters bend along the edge.
-    float Eh = 12.0;
+    float Eh = band.y; // floating bar 14 (recording: end band ~10 pt); edge slope 1 - 2B/Eh = 0.08
     float B = 0.46 * Eh;
     float uh = clamp(s / Eh, 0.0, 1.0);
     float fh = s + B * (1.0 - uh) * (1.0 - uh);

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
@@ -77,7 +78,7 @@ class QrDialog extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.vpn_key),
+                  const Icon(CupertinoIcons.lock_fill),
                   const SizedBox(width: 5),
                   Text(pin!),
                 ],

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/provider/selection/selected_sending_files_provider.dart';
@@ -116,7 +117,7 @@ class SelectedFilesPage extends StatelessWidget {
                                       ref.redux(selectedSendingFilesProvider).dispatch(UpdateMessageAction(message: result, index: index));
                                     }
                                   },
-                                  child: const Icon(Icons.edit),
+                                  child: const Icon(CupertinoIcons.pencil),
                                 ),
                               TextButton(
                                 style: TextButton.styleFrom(
@@ -130,7 +131,7 @@ class SelectedFilesPage extends StatelessWidget {
                                     context.popUntilRoot();
                                   }
                                 },
-                                child: const Icon(Icons.delete),
+                                child: const Icon(CupertinoIcons.trash),
                               ),
                             ],
                           ),

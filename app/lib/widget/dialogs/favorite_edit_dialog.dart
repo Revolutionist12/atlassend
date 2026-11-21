@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
@@ -112,7 +113,7 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                     }
                   }
                 },
-                icon: const Icon(Icons.delete),
+                icon: const Icon(CupertinoIcons.trash),
                 label: Text(t.general.delete),
               ),
             ],
@@ -133,7 +134,7 @@ class _FavoriteEditDialogState extends State<FavoriteEditDialog> with Refena {
                         },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 5),
-                          child: Icon(Icons.info, color: Theme.of(context).colorScheme.warning, size: 20),
+                          child: Icon(CupertinoIcons.info_circle_fill, color: Theme.of(context).colorScheme.warning, size: 20),
                         ),
                       ),
                     ],

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/widget/dialogs/custom_bottom_sheet.dart';
@@ -20,7 +21,7 @@ class CancelSessionDialog extends StatelessWidget {
           ),
           ElevatedButton.icon(
             onPressed: () => context.pop(true),
-            icon: const Icon(Icons.close),
+            icon: const Icon(CupertinoIcons.xmark),
             label: Text(t.general.cancel),
           ),
         ],

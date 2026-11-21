@@ -93,7 +93,8 @@ class AtlasShell extends StatelessWidget {
                 bottom: barBottom,
                 child: LiquidGlassBar(
                   expand: true,
-                  items: [for (final tab in HomeTab.values) LiquidGlassItem(_label(tab))],
+                  edgeRoom: _barGap,
+                  items: [for (final tab in HomeTab.values) LiquidGlassItem(_label(tab), icon: tab.filledIcon)],
                   selected: currentTab.index,
                   onSelect: (i) => onSelect(HomeTab.values[i]),
                 ),

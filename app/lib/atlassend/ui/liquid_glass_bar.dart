@@ -10,32 +10,40 @@ import 'package:logging/logging.dart';
 
 final _logger = Logger('LiquidGlassBar');
 
-/// One text entry of a [LiquidGlassBar].
+/// One entry of a [LiquidGlassBar]: a label and, in the floating bar, an icon above it.
 class LiquidGlassItem {
   final String label;
+  final IconData? icon;
 
-  const LiquidGlassItem(this.label);
+  const LiquidGlassItem(this.label, {this.icon});
 }
 
-/// A capsule with text tabs whose selection is a "liquid glass" lens: while
-/// pressed or dragged a glass drop appears, follows the finger on springs,
-/// stretches with speed, refracts and disperses the labels under its rim, and
-/// settles on the nearest tab when released. The capsule itself stays still.
+/// iOS 26 style tab bar whose selection is a "liquid glass" lens.
 ///
-/// Port of the user's "Liquid Glass Tab Bar" design (Liquid Glass Tab Bar.html):
-/// same layout (width follows the labels), same spring model, same lens shader
-/// (shaders/liquid_glass.frag, with a thinner rim). The bar is rendered into an
-/// image every animated frame and the lens is a fragment shader over it.
+/// Port of the AtlasSend liquid glass study (C:\dev\liquid-glass-tabbar, index.html),
+/// which was tuned frame by frame against a screen recording of the iOS 26 App Store bar:
+/// - rest: dark capsule, the selected tab sits on a darker pill, its icon and label in the accent color;
+/// - press: the bar swells (x 1.03, y 1.045) and leans toward the finger, the pill turns into a
+///   glass lens 18 px wider and 22 px taller than the tab, overflowing the bar above and below;
+/// - drag: the lens follows the finger on springs, its width eases between the tabs, it stretches
+///   with speed and wobbles back, and "breathes" slowly while held; the accent layer lags behind;
+/// - release: the lens snaps to the nearest tab and fades back into the pill.
+///
+/// The floating bar never leaves the screen: swell and lean are limited by [edgeRoom].
+/// The inline variant ([floating] false) is a slim segmented control that does not swell.
 class LiquidGlassBar extends StatefulWidget {
   final List<LiquidGlassItem> items;
   final int selected;
   final ValueChanged<int> onSelect;
 
-  /// Floating bar (large labels, as in the design) or an inline control (smaller).
+  /// Floating tab bar (icon + label, swells) or an inline segmented control (text, still).
   final bool floating;
 
   /// Stretch the tabs to the available width instead of sizing them to their labels.
   final bool expand;
+
+  /// Free space between the bar and the screen edge; nothing the bar draws may cross it.
+  final double edgeRoom;
 
   const LiquidGlassBar({
     required this.items,
@@ -43,19 +51,31 @@ class LiquidGlassBar extends StatefulWidget {
     required this.onSelect,
     this.floating = true,
     this.expand = false,
+    this.edgeRoom = 14,
     super.key,
   });
 
   /// Height of the floating bar, for content insets.
-  static const floatingHeight = 56.0;
+  static const floatingHeight = 64.0;
 
   @override
   State<LiquidGlassBar> createState() => _LiquidGlassBarState();
 }
 
 /// Margin around the bar inside the painted area, so the lens and its shadow can overflow.
-const _m = 22.0;
+const _m = 34.0;
 const _padX = 5.0;
+
+// Floating bar typography (from the study): label 11 px, shrinking in 0.25 px steps to 9 px.
+const _labelMax = 11.0;
+const _labelMin = 9.0;
+const _side = 24.0; // air beside a label inside its tab
+const _sideMin = 18.0;
+const _icon = 24.0;
+const _iconGap = 3.5;
+
+/// How far the glass may poke past the bar ends (study: <= 8, recording: about 3-5).
+const _over = 6.0;
 
 class _Spring {
   double v;
@@ -70,6 +90,17 @@ class _Spring {
   }
 
   bool get settled => (v - t).abs() < 0.01 && vel.abs() < 0.01;
+}
+
+/// Bar transform while pressed: swell and lean toward the finger.
+class _BarTransform {
+  final double s;
+  final double sy;
+  final double tx;
+
+  const _BarTransform(this.s, this.sy, this.tx);
+
+  static const identity = _BarTransform(1, 1, 0);
 }
 
 class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProviderStateMixin {
@@ -97,16 +128,23 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
   List<double> _xs = const [];
   List<double> _ws = const [];
   double _barWidth = 0;
+  double _labelPx = _labelMax;
   String _layoutKey = '';
+  _BarTransform _t = _BarTransform.identity;
 
-  double get _h => widget.floating ? LiquidGlassBar.floatingHeight : 40.0;
+  bool get _floating => widget.floating;
 
-  TextStyle get _style => TextStyle(
+  double get _h => _floating ? LiquidGlassBar.floatingHeight : 40.0;
+
+  TextStyle _labelStyle(double px) => TextStyle(
     fontFamily: 'Inter',
-    fontSize: widget.floating ? 19.5 : 14.5,
+    fontSize: px,
     fontWeight: FontWeight.w500,
-    letterSpacing: widget.floating ? -0.2 : -0.1,
+    letterSpacing: px * 0.01,
+    height: 1.0,
   );
+
+  TextStyle get _style => _floating ? _labelStyle(_labelPx) : _labelStyle(14.5).copyWith(letterSpacing: -0.1);
 
   @override
   void initState() {
@@ -142,9 +180,9 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
 
   // --- layout -----------------------------------------------------------------
 
-  double _measure(String text) {
+  double _measure(String text, TextStyle style) {
     final tp = TextPainter(
-      text: TextSpan(text: text, style: _style),
+      text: TextSpan(text: text, style: style),
       textDirection: TextDirection.ltr,
       maxLines: 1,
     )..layout();
@@ -152,19 +190,44 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
   }
 
   void _layout(double maxWidth) {
-    final key = '${widget.items.map((i) => i.label).join('|')}/${widget.floating}/${widget.expand}/${maxWidth.round()}';
+    final key = '${widget.items.map((i) => i.label).join('|')}/$_floating/${widget.expand}/${maxWidth.round()}';
     if (key == _layoutKey) {
       return;
     }
     _layoutKey = key;
-    const itemPad = 18.0;
-    var ws = [for (final item in widget.items) (_measure(item.label) + itemPad * 2).roundToDouble()];
-    var total = ws.fold(0.0, (a, b) => a + b) + 2 * _padX;
-    if (widget.expand || total > maxWidth) {
-      final avail = maxWidth - 2 * _padX;
+    final avail = maxWidth - 2 * _padX;
+    List<double> ws;
+    if (_floating) {
+      // Shrink the label until every tab fits, then take air from beside the labels.
+      var px = _labelMax;
+      var side = _side;
+      List<double> need;
+      for (;;) {
+        final style = _labelStyle(px);
+        need = [for (final item in widget.items) _measure(item.label, style).ceilToDouble() + side];
+        if (need.fold(0.0, (a, b) => a + b) <= avail) {
+          break;
+        }
+        if (px > _labelMin) {
+          px -= 0.25;
+        } else if (side > _sideMin) {
+          side -= 1;
+        } else {
+          break;
+        }
+      }
+      _labelPx = px;
+      final sum = need.fold(0.0, (a, b) => a + b);
+      final extra = widget.expand ? math.max(0.0, avail - sum) / need.length : 0.0; // leftover shared equally
+      ws = [for (final n in need) n + extra];
+    } else {
+      const itemPad = 18.0;
+      final style = _style;
+      ws = [for (final item in widget.items) (_measure(item.label, style) + itemPad * 2).roundToDouble()];
       final sum = ws.fold(0.0, (a, b) => a + b);
-      ws = widget.expand ? [for (final _ in ws) avail / ws.length] : [for (final w in ws) w * avail / sum];
-      total = maxWidth;
+      if (widget.expand || sum > avail) {
+        ws = widget.expand ? [for (final _ in ws) avail / ws.length] : [for (final w in ws) w * avail / sum];
+      }
     }
     var x = _padX;
     _xs = [];
@@ -173,7 +236,7 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
       x += w;
     }
     _ws = ws;
-    _barWidth = total;
+    _barWidth = math.min(maxWidth, x + _padX);
     _snap(_pending ?? widget.selected);
     _cx.v = _cx.t;
     _bx.v = _bx.t;
@@ -213,7 +276,24 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
     return _ws.last;
   }
 
-  double _clampX(double x, double w) => x.clamp(_padX + w / 2 - 8, _barWidth - _padX - w / 2 + 8);
+  double get _extraW => _floating ? 18 : 6;
+
+  /// Past the end tabs the finger is rubber-banded, so the glass pokes past the bar
+  /// ends by at most [_over].
+  double _clampX(double x, double w) {
+    final half = (w + _extraW) / 2;
+    final lo = _padX + w / 2;
+    final hi = _barWidth - _padX - w / 2;
+    final give = math.max(0.0, _over - (half - w / 2 - _padX));
+    double rub(double e) => give * (1 - math.exp(-e / 40));
+    if (x < lo) {
+      return lo - rub(lo - x);
+    }
+    if (x > hi) {
+      return hi + rub(x - hi);
+    }
+    return x;
+  }
 
   void _snap(int i) {
     _cx.t = _bx.t = _center(i);
@@ -222,8 +302,8 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
 
   // --- input ------------------------------------------------------------------
 
-  /// Pointer (painted-area coordinates) -> bar-local x. The bar never moves.
-  double _toBarX(double canvasX) => canvasX - _m;
+  /// Pointer (painted-area coordinates) -> bar-local x, undoing the swell and lean.
+  double _toBarX(double canvasX) => (canvasX - _m - _barWidth / 2 - _t.tx) / _t.s + _barWidth / 2;
 
   void _onDown(PointerDownEvent e) {
     _dragging = true;
@@ -287,10 +367,10 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
     for (var k = 0; k < 4; k++) {
       _cx.step(_dragging ? 700 : 340, _dragging ? 46 : 29, dt);
       _w.step(380, 32, dt);
-      _bx.step(_dragging ? 260 : 300, 30, dt); // the colored track lags the glass a little
+      _bx.step(_dragging ? 260 : 300, 30, dt); // the accent layer lags the glass
       _bw.step(300, 30, dt);
       _press.step(_press.t > 0 ? 480 : 230, _press.t > 0 ? 30 : 25, dt);
-      _stretch.t = math.min(0.4, _cx.vel.abs() / 1800); // faster -> longer
+      _stretch.t = math.min(0.55, _cx.vel.abs() / 1500); // faster -> longer
       _stretch.step(160, 11, dt); // under-damped: stretches, then wobbles back
     }
     _breath += frame;
@@ -302,17 +382,39 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
     }
   }
 
+  /// Swell and lean, limited so that the bar plus the overhanging glass stay [LiquidGlassBar.edgeRoom] - 2 px
+  /// inside the screen edge.
+  _BarTransform _transform(double p) {
+    if (!_floating || p <= 0) {
+      return _BarTransform.identity;
+    }
+    final room = math.max(0.0, widget.edgeRoom - 2 - _over);
+    var s = 1 + 0.03 * p;
+    if (_barWidth * (s - 1) / 2 > room) {
+      s = 1 + 2 * room / _barWidth;
+    }
+    final txMax = math.max(0.0, room - _barWidth * (s - 1) / 2);
+    final lean = ((_cx.v - _barWidth / 2) / (_barWidth / 2)).clamp(-1.0, 1.0);
+    final tx = (lean * 7 * p).clamp(-txMax, txMax);
+    return _BarTransform(s, 1 + 0.045 * p, tx);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = atlasOf(context);
+    final dark = theme.isDark;
     final palette = _BarPalette(
-      // Nearly clear: whatever lies behind the bar stays readable.
-      body: theme.isDark ? const Color(0x2E1C1C1E) : const Color(0x33FFFFFF),
-      rim: theme.isDark ? const Color(0x2EFFFFFF) : const Color(0x1F000000),
-      pill: theme.isDark ? const Color(0x24FFFFFF) : const Color(0x14000000),
-      text: theme.text,
-      selected: theme.accent.computeLuminance() > 0.85 && theme.isDark ? AppleColors.blue : theme.accent,
-      glassFill: theme.isDark ? const Color(0x0CFFFFFF) : const Color(0x14FFFFFF),
+      // Translucent: what lies behind the bar shows through, softly blurred (iOS chrome).
+      body: dark ? const Color(0xA61D1D1D) : const Color(0xB8F7F7F7),
+      lift: dark ? const Color(0x0DFFFFFF) : const Color(0x0A000000),
+      rimTop: dark ? const Color(0x3DFFFFFF) : const Color(0x1F000000),
+      rimBottom: dark ? const Color(0x36FFFFFF) : const Color(0x17000000),
+      pill: dark ? const Color(0xCC0C0C0C) : const Color(0x1A000000),
+      pillRim: dark ? const Color(0x0FFFFFFF) : const Color(0x0A000000),
+      text: dark ? const Color(0xFFF7F7F7) : theme.text,
+      selected: theme.accent.computeLuminance() > 0.85 && dark ? AppleColors.blue : theme.accent,
+      // Where the glass hangs past the bar it shows a darkened band, like the recording.
+      outside: dark ? const Color(0x66000000) : const Color(0x26000000),
     );
 
     return LayoutBuilder(
@@ -321,15 +423,28 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
         final h = _h;
         final p = math.max(0.0, _press.v);
         final pc = math.min(1.0, p);
-        final br = _dragging ? math.sin(_breath * math.pi * 2 / 2.2) * 0.012 * pc : 0.0;
-        // Slim drop: barely taller than the tabs' own pill.
-        final lw = (_w.v + 6 * p) * (1 + _stretch.v) * (1 + br);
-        final lh = ((h - 10) + 6 * p) * (1 - _stretch.v * 0.3) * (1 + br * 0.7);
-        final lens = Rect.fromCenter(center: Offset(_m + _cx.v, _m + h / 2), width: lw, height: lh);
+        _t = _transform(p);
+        final t = _t;
+        final br = _dragging ? math.sin(_breath * math.pi * 2 / 2.2) : 0.0; // slow breathing while held
+        final double lw;
+        final double lh;
+        if (_floating) {
+          lw = (_w.v + 18 * p) * (1 + _stretch.v) * (1 + 0.014 * br * pc) * t.s;
+          lh = ((h - 8) + 22 * p) * (1 - _stretch.v * 0.32) * (1 + 0.010 * br * pc) * t.sy;
+        } else {
+          lw = (_w.v + 6 * p) * (1 + _stretch.v * 0.7) * (1 + 0.012 * br * pc);
+          lh = ((h - 10) + 6 * p) * (1 - _stretch.v * 0.3) * (1 + 0.008 * br * pc);
+        }
+        final lens = Rect.fromCenter(
+          center: Offset(_m + _barWidth / 2 + (_cx.v - _barWidth / 2) * t.s + t.tx, _m + h / 2),
+          width: lw,
+          height: lh,
+        );
 
         final painter = _LiquidGlassPainter(
           items: widget.items,
           style: _style,
+          floating: _floating,
           xs: _xs,
           ws: _ws,
           barWidth: _barWidth,
@@ -339,6 +454,7 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
           bx: _bx.v,
           bw: _bw.v,
           pressed: pc,
+          transform: t,
           lens: lens,
           shader: _shader,
           palette: palette,
@@ -351,6 +467,22 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
           child: Stack(
             clipBehavior: Clip.none,
             children: [
+              // Frosted backdrop under the capsule, following the swell and lean.
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.translationValues(t.tx, 0, 0)..scaleByDouble(t.s, t.sy, 1.0, 1.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(h / 2),
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               Positioned(
                 left: -_m,
                 top: -_m,
@@ -373,25 +505,32 @@ class _LiquidGlassBarState extends State<LiquidGlassBar> with SingleTickerProvid
 
 class _BarPalette {
   final Color body;
-  final Color rim;
+  final Color lift;
+  final Color rimTop;
+  final Color rimBottom;
   final Color pill;
+  final Color pillRim;
   final Color text;
   final Color selected;
-  final Color glassFill;
+  final Color outside;
 
   const _BarPalette({
     required this.body,
-    required this.rim,
+    required this.lift,
+    required this.rimTop,
+    required this.rimBottom,
     required this.pill,
+    required this.pillRim,
     required this.text,
     required this.selected,
-    required this.glassFill,
+    required this.outside,
   });
 }
 
 class _LiquidGlassPainter extends CustomPainter {
   final List<LiquidGlassItem> items;
   final TextStyle style;
+  final bool floating;
   final List<double> xs;
   final List<double> ws;
   final double barWidth;
@@ -401,6 +540,7 @@ class _LiquidGlassPainter extends CustomPainter {
   final double bx;
   final double bw;
   final double pressed;
+  final _BarTransform transform;
   final Rect lens;
   final ui.FragmentShader? shader;
   final _BarPalette palette;
@@ -409,6 +549,7 @@ class _LiquidGlassPainter extends CustomPainter {
   _LiquidGlassPainter({
     required this.items,
     required this.style,
+    required this.floating,
     required this.xs,
     required this.ws,
     required this.barWidth,
@@ -418,55 +559,94 @@ class _LiquidGlassPainter extends CustomPainter {
     required this.bx,
     required this.bw,
     required this.pressed,
+    required this.transform,
     required this.lens,
     required this.shader,
     required this.palette,
     required this.devicePixelRatio,
   });
 
+  double _snapPx(double v) => (v * devicePixelRatio).roundToDouble() / devicePixelRatio;
+
   RRect _pillRect(double center, double width) =>
       RRect.fromRectAndRadius(Rect.fromLTWH(center - width / 2, 4, width, height - 8), Radius.circular((height - 8) / 2));
 
-  void _labels(Canvas c, Color color) {
+  TextPainter _text(String text, TextStyle style, double maxWidth) => TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+    ellipsis: '…',
+  )..layout(maxWidth: math.max(0, maxWidth));
+
+  void _content(Canvas c, Color color) {
+    final labelStyle = style.copyWith(color: color);
+    if (!floating) {
+      for (var i = 0; i < items.length; i++) {
+        final tp = _text(items[i].label, labelStyle, ws[i] - 8);
+        tp.paint(c, Offset(_snapPx(xs[i] + ws[i] / 2 - tp.width / 2), _snapPx(height / 2 - tp.height / 2 + 1)));
+      }
+      return;
+    }
+    // Icon on top, small label below, the pair centered vertically.
+    final labelH = style.fontSize ?? _labelMax;
+    final top = (height - (_icon + _iconGap + labelH)) / 2;
     for (var i = 0; i < items.length; i++) {
-      final tp = TextPainter(
-        text: TextSpan(
-          text: items[i].label,
-          style: style.copyWith(color: color),
-        ),
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-        ellipsis: '…',
-      )..layout(maxWidth: ws[i] - 8);
-      tp.paint(c, Offset(xs[i] + ws[i] / 2 - tp.width / 2, height / 2 - tp.height / 2 + 1));
+      final mx = xs[i] + ws[i] / 2;
+      final icon = items[i].icon;
+      if (icon != null) {
+        final ip = _text(
+          String.fromCharCode(icon.codePoint),
+          TextStyle(fontFamily: icon.fontFamily, package: icon.fontPackage, fontSize: _icon, height: 1.0, color: color),
+          _icon * 2,
+        );
+        ip.paint(c, Offset(_snapPx(mx - ip.width / 2), _snapPx(top)));
+      }
+      final tp = _text(items[i].label, labelStyle, ws[i] - 8);
+      tp.paint(c, Offset(_snapPx(mx - tp.width / 2), _snapPx(top + _icon + _iconGap)));
     }
   }
 
   /// The bar without the lens, in painted-area coordinates.
   void _scene(Canvas c) {
     c.save();
-    c.translate(_m, _m);
+    c.translate(_m + barWidth / 2 + transform.tx, _m + height / 2);
+    c.scale(transform.s, transform.sy);
+    c.translate(-barWidth / 2, -height / 2);
 
     final body = RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, barWidth, height), Radius.circular(height / 2));
     c.drawRRect(body, Paint()..color = palette.body);
+    if (pressed > 0) {
+      // While held the bar lifts toward the light (recording: grey 30 -> 41).
+      c.drawRRect(body, Paint()..color = palette.lift.withValues(alpha: palette.lift.a * pressed));
+    }
+    // Hairline rim, one device pixel, brighter at the top.
+    final hl = 1 / devicePixelRatio;
     c.drawRRect(
-      body.deflate(0.5),
+      body.deflate(hl / 2),
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..color = palette.rim,
+        ..strokeWidth = hl
+        ..shader = ui.Gradient.linear(Offset.zero, Offset(0, height), [palette.rimTop, palette.rimBottom]),
     );
 
     // Resting pill, fading out as the glass takes over.
     if (pressed < 1) {
-      c.drawRRect(_pillRect(cx, w), Paint()..color = palette.pill.withValues(alpha: palette.pill.a * (1 - pressed)));
+      final pill = _pillRect(cx, w);
+      c.drawRRect(pill, Paint()..color = palette.pill.withValues(alpha: palette.pill.a * (1 - pressed)));
+      c.drawRRect(
+        pill,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = hl
+          ..color = palette.pillRim.withValues(alpha: palette.pillRim.a * (1 - pressed)),
+      );
     }
 
-    _labels(c, palette.text);
-    // Selected color, clipped to the (lagging) selection track.
+    _content(c, palette.text);
+    // Accent color, clipped to the (lagging) selection track.
     c.save();
     c.clipRRect(_pillRect(bx, bw));
-    _labels(c, palette.selected);
+    _content(c, palette.selected);
     c.restore();
     c.restore();
   }
@@ -482,7 +662,7 @@ class _LiquidGlassPainter extends CustomPainter {
       // No shader support: a plain translucent drop instead of refraction.
       _scene(canvas);
       final r = RRect.fromRectAndRadius(lens, Radius.circular(math.min(lens.width, lens.height) / 2));
-      canvas.drawRRect(r, Paint()..color = palette.glassFill.withValues(alpha: palette.glassFill.a * pressed));
+      canvas.drawRRect(r, Paint()..color = const Color(0x14FFFFFF).withValues(alpha: 0.08 * pressed));
       canvas.drawRRect(
         r,
         Paint()
@@ -500,7 +680,7 @@ class _LiquidGlassPainter extends CustomPainter {
       (size.height * devicePixelRatio).ceil(),
     );
 
-    final fill = palette.glassFill;
+    final fill = palette.outside;
     const rim = Color(0xFF808080);
     var i = 0;
     void f(double v) => shader.setFloat(i++, v);
@@ -512,11 +692,11 @@ class _LiquidGlassPainter extends CustomPainter {
     f(lens.height / 2);
     f(math.min(lens.width, lens.height) / 2); // lr
     f(pressed); // a
-    f(_m + barWidth / 2); // bc
+    f(_m + barWidth / 2 + transform.tx); // bc
     f(_m + height / 2);
-    f(barWidth / 2); // bb
-    f(height / 2);
-    f(height / 2); // br
+    f(barWidth / 2 * transform.s); // bb
+    f(height / 2 * transform.sy);
+    f(height / 2 * math.min(transform.s, transform.sy)); // br
     f(fill.r * fill.a); // fill (premultiplied)
     f(fill.g * fill.a);
     f(fill.b * fill.a);
@@ -525,6 +705,8 @@ class _LiquidGlassPainter extends CustomPainter {
     f(rim.g);
     f(rim.b);
     f(1);
+    f(floating ? 18 : 10); // band: flat top/bottom (Ev)
+    f(floating ? 14 : 10); //       rounded ends (Eh)
     shader.setImageSampler(0, image);
 
     canvas.drawRect(Offset.zero & size, Paint()..shader = shader);

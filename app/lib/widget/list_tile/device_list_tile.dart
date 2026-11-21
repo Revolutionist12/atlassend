@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/util/device_type_ext.dart';
 import 'package:localsend_app/widget/custom_progress_bar.dart';
@@ -39,13 +40,13 @@ class DeviceListTile extends StatelessWidget {
           Text(nameOverride ?? device.alias, style: const TextStyle(fontSize: 20)),
           if (isFavorite) ...[
             const SizedBox(width: 5),
-            Icon(Icons.check_circle, size: 16),
+            Icon(CupertinoIcons.checkmark_alt_circle_fill, size: 16),
           ],
         ],
       ),
       trailing: onDetailsTap != null
           ? IconButton(
-              icon: const Icon(Icons.info_outline),
+              icon: const Icon(CupertinoIcons.info_circle),
               onPressed: onDetailsTap,
             )
           : null,

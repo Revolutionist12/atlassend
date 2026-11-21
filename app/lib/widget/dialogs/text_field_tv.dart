@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
@@ -76,7 +77,7 @@ class _TextFieldTvState extends State<TextFieldTv> with Refena {
         decoration: InputDecoration(
           suffixIcon: widget.onDelete != null
               ? IconButton(
-                  icon: Icon(Icons.clear),
+                  icon: Icon(CupertinoIcons.xmark),
                   onPressed: () {
                     widget.onDelete?.call();
                   },

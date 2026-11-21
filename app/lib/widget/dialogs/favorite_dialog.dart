@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
@@ -110,7 +111,7 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
                         TextButton(
                           style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurface, iconSize: 24),
                           onPressed: _fetching ? null : () async => await _showDeviceDialog(favorite),
-                          child: const Icon(Icons.edit),
+                          child: const Icon(CupertinoIcons.pencil),
                         ),
                       ],
                     ),
@@ -131,7 +132,7 @@ class _FavoritesDialogState extends State<FavoritesDialog> with Refena {
                             },
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 5),
-                              child: Icon(Icons.info, color: Theme.of(context).colorScheme.warning, size: 20),
+                              child: Icon(CupertinoIcons.info_circle_fill, color: Theme.of(context).colorScheme.warning, size: 20),
                             ),
                           ),
                         ],

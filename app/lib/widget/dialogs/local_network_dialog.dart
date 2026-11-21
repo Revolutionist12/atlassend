@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/widget/dialogs/custom_bottom_sheet.dart';
@@ -21,7 +22,7 @@ class LocalNetworkDialog extends StatelessWidget {
           ),
           ElevatedButton.icon(
             onPressed: () async => SystemSettings.app(),
-            icon: const Icon(Icons.settings),
+            icon: const Icon(CupertinoIcons.gear_solid),
             label: Text(t.dialogs.localNetworkUnauthorized.gotoSettings),
           ),
         ],

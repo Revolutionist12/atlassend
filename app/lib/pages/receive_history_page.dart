@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
@@ -87,7 +88,7 @@ class ReceiveHistoryPage extends StatelessWidget {
                           final destination = context.read(settingsProvider).destination ?? await getDefaultDestinationDirectory();
                           await openFolder(folderPath: destination);
                         },
-                  icon: const Icon(Icons.folder),
+                  icon: const Icon(CupertinoIcons.folder_fill),
                   label: Text(t.receiveHistoryPage.openFolder),
                 ),
                 const SizedBox(width: 20),
@@ -108,7 +109,7 @@ class ReceiveHistoryPage extends StatelessWidget {
                             await context.redux(receiveHistoryProvider).dispatchAsync(RemoveAllHistoryEntriesAction());
                           }
                         },
-                  icon: const Icon(Icons.delete),
+                  icon: const Icon(CupertinoIcons.trash),
                   label: Text(t.receiveHistoryPage.deleteHistory),
                 ),
               ],

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:localsend_app/config/theme.dart';
 import 'package:localsend_app/gen/strings.g.dart';
@@ -129,7 +130,7 @@ class _SendPageState extends State<SendPage> with Refena {
                           const InitialFadeTransition(
                             duration: Duration(milliseconds: 300),
                             delay: Duration(milliseconds: 400),
-                            child: Icon(Icons.arrow_downward),
+                            child: Icon(CupertinoIcons.arrow_down),
                           ),
                           const SizedBox(height: 20),
                           Hero(
@@ -155,7 +156,7 @@ class _SendPageState extends State<SendPage> with Refena {
                                 style: TextButton.styleFrom(
                                   foregroundColor: Theme.of(context).colorScheme.onSurface,
                                 ),
-                                icon: Icon(Icons.verified_user),
+                                icon: Icon(CupertinoIcons.checkmark_shield_fill),
                                 label: Text(t.verifyPage.title),
                               ),
                             ),
@@ -230,7 +231,7 @@ class _SendPageState extends State<SendPage> with Refena {
                                           context: context,
                                           builder: (_) => ErrorDialog(error: sendState.errorMessage!),
                                         ),
-                                        child: const Icon(Icons.info),
+                                        child: const Icon(CupertinoIcons.info_circle_fill),
                                       ),
                                   ],
                                 ),
@@ -243,7 +244,7 @@ class _SendPageState extends State<SendPage> with Refena {
                                   _cancel();
                                   context.global.dispatch(NavigateAction.popUntilRoot());
                                 },
-                                icon: Icon(waiting ? Icons.close : Icons.check_circle),
+                                icon: Icon(waiting ? CupertinoIcons.xmark : CupertinoIcons.checkmark_alt_circle_fill),
                                 label: Text(waiting ? t.general.cancel : t.general.close),
                               ),
                             ),

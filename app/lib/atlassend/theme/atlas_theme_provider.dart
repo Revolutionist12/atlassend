@@ -68,6 +68,12 @@ extension AtlasThemeColors on AtlasTheme {
   Color get pressed => text.withValues(alpha: isDark ? 0.08 : 0.06);
 }
 
+/// iOS 26 corner radii (continuous corners), shared by the AtlasSend widgets.
+const kAtlasGroupRadius = 22.0; // inset grouped sections, cards
+const kAtlasAlertRadius = 28.0; // alerts / dialogs
+const kAtlasSheetRadius = 34.0; // sheets
+const kAtlasFieldRadius = 12.0; // text fields
+
 const _fontFallback = ['Segoe UI', 'Yu Gothic UI', 'Malgun Gothic', 'Microsoft YaHei UI', 'Noto Sans'];
 
 /// Material theme derived from an [AtlasTheme], so the upstream pages that are
@@ -101,7 +107,12 @@ ThemeData atlasMaterialTheme(AtlasTheme t) {
     shadow: Colors.black,
   );
 
-  final border = OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none);
+  final border = OutlineInputBorder(borderRadius: BorderRadius.circular(kAtlasFieldRadius), borderSide: BorderSide.none);
+  // iOS 26 shapes: continuous (superellipse) corners, capsule buttons.
+  const capsule = StadiumBorder();
+  RoundedSuperellipseBorder squircle(double r) => RoundedSuperellipseBorder(borderRadius: BorderRadius.circular(r));
+  const buttonPadding = EdgeInsets.symmetric(horizontal: 22, vertical: 14);
+  const buttonText = TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: -0.3);
 
   return ThemeData(
     useMaterial3: true,
@@ -127,13 +138,50 @@ ThemeData atlasMaterialTheme(AtlasTheme t) {
     cardTheme: CardThemeData(
       color: t.surface,
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      shape: squircle(kAtlasGroupRadius),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: t.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      shape: squircle(kAtlasAlertRadius),
+      titleTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.w600, color: t.text, letterSpacing: -0.4),
+      contentTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 14.5, color: t.text, height: 1.35),
     ),
-    bottomSheetTheme: BottomSheetThemeData(backgroundColor: t.surface),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: t.surface,
+      elevation: 0,
+      showDragHandle: true,
+      dragHandleColor: t.muted.withValues(alpha: 0.5),
+      shape: const RoundedSuperellipseBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(kAtlasSheetRadius))),
+    ),
+    listTileTheme: ListTileThemeData(
+      shape: squircle(14),
+      iconColor: t.accent,
+      titleTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 15.5, color: t.text, letterSpacing: -0.2),
+      subtitleTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: t.muted),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: capsule,
+      backgroundColor: t.isDark ? const Color(0xFF2C2C2E) : const Color(0xFF1C1C1E),
+      contentTextStyle: const TextStyle(fontFamily: 'Inter', fontSize: 14.5, color: Colors.white),
+      elevation: 0,
+    ),
+    popupMenuTheme: PopupMenuThemeData(color: t.surface, elevation: 6, shape: squircle(14)),
+    chipTheme: ChipThemeData(shape: capsule, side: BorderSide.none, backgroundColor: t.text.withValues(alpha: 0.08)),
+    segmentedButtonTheme: SegmentedButtonThemeData(style: SegmentedButton.styleFrom(shape: capsule)),
+    iconButtonTheme: IconButtonThemeData(style: IconButton.styleFrom(foregroundColor: t.accent)),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: t.accent,
+      foregroundColor: t.onAccent,
+      elevation: 0,
+      highlightElevation: 0,
+      shape: capsule,
+    ),
+    pageTransitionsTheme: PageTransitionsTheme(
+      builders: {for (final p in TargetPlatform.values) p: const CupertinoPageTransitionsBuilder()},
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: t.isDark ? t.text.withValues(alpha: 0.08) : t.text.withValues(alpha: 0.05),
@@ -147,23 +195,32 @@ ThemeData atlasMaterialTheme(AtlasTheme t) {
         backgroundColor: t.accent,
         foregroundColor: t.onAccent,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        shape: capsule,
+        padding: buttonPadding,
+        textStyle: buttonText,
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: t.accent,
         foregroundColor: t.onAccent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: capsule,
+        padding: buttonPadding,
+        textStyle: buttonText,
       ),
     ),
-    textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: t.accent)),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: t.accent, shape: capsule, textStyle: buttonText.copyWith(fontWeight: FontWeight.w500)),
+    ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
+        // iOS "gray" button: tinted fill, no outline.
         foregroundColor: t.accent,
-        side: BorderSide(color: t.separator),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        backgroundColor: t.text.withValues(alpha: t.isDark ? 0.10 : 0.06),
+        side: BorderSide.none,
+        shape: capsule,
+        padding: buttonPadding,
+        textStyle: buttonText,
       ),
     ),
     switchTheme: SwitchThemeData(
