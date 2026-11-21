@@ -44,7 +44,7 @@ class AtlasScreen extends StatelessWidget {
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 40 + MediaQuery.paddingOf(context).bottom),
               children: children,
             ),
           ),

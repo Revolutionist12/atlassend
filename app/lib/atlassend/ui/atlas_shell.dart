@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:localsend_app/atlassend/atlas_identity.dart';
 import 'package:localsend_app/atlassend/theme/atlas_theme_provider.dart';
 import 'package:localsend_app/atlassend/ui/atlas_widgets.dart';
+import 'package:localsend_app/atlassend/ui/liquid_glass_bar.dart';
 import 'package:localsend_app/atlassend/ui/receive_screen.dart';
 import 'package:localsend_app/atlassend/ui/send_screen.dart';
 import 'package:localsend_app/atlassend/ui/settings_screen.dart';
@@ -70,10 +71,25 @@ class AtlasShell extends StatelessWidget {
               ],
             );
           }
-          return Column(
+          // Phones: the content runs under a floating liquid glass tab bar.
+          final media = MediaQuery.of(context);
+          final barBottom = media.padding.bottom + 10;
+          return Stack(
             children: [
-              Expanded(child: pages),
-              _TabBar(currentTab: currentTab, onSelect: onSelect),
+              MediaQuery(
+                data: media.copyWith(padding: media.padding.copyWith(bottom: barBottom + LiquidGlassBar.floatingHeight + 6)),
+                child: pages,
+              ),
+              Positioned(
+                left: 14,
+                right: 14,
+                bottom: barBottom,
+                child: LiquidGlassBar(
+                  items: [for (final tab in HomeTab.values) LiquidGlassItem(_label(tab), icon: tab.filledIcon)],
+                  selected: currentTab.index,
+                  onSelect: (i) => onSelect(HomeTab.values[i]),
+                ),
+              ),
             ],
           );
         },
@@ -87,52 +103,6 @@ String _label(HomeTab tab) => switch (tab) {
   HomeTab.send => t.sendTab.title,
   HomeTab.settings => t.settingsTab.title,
 };
-
-class _TabBar extends StatelessWidget {
-  final HomeTab currentTab;
-  final ValueChanged<HomeTab> onSelect;
-
-  const _TabBar({required this.currentTab, required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = atlasOf(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.surface,
-        border: Border(top: BorderSide(color: theme.separator, width: 0.6)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 54,
-          child: Row(
-            children: [
-              for (final tab in HomeTab.values)
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => onSelect(tab),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(tab == currentTab ? tab.filledIcon : tab.outlineIcon, size: 25, color: tab == currentTab ? theme.accent : theme.muted),
-                        const SizedBox(height: 3),
-                        Text(
-                          _label(tab),
-                          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: tab == currentTab ? theme.accent : theme.muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _Sidebar extends StatelessWidget {
   final HomeTab currentTab;

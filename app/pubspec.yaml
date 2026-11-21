@@ -113,6 +113,10 @@ flutter:
     - assets/img/
     - assets/CHANGELOG.md
 
+  # AtlasSend: liquid glass lens of the tab bar
+  shaders:
+    - shaders/liquid_glass.frag
+
   # AtlasSend: Inter (SIL Open Font License 1.1, see assets/fonts/inter/OFL.txt)
   fonts:
     - family: Inter

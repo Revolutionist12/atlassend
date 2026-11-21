@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:localsend_app/atlassend/theme/atlas_theme_provider.dart';
 import 'package:localsend_app/atlassend/ui/atlas_widgets.dart';
+import 'package:localsend_app/atlassend/ui/liquid_glass_bar.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/send_mode.dart';
 import 'package:localsend_app/pages/selected_files_page.dart';
@@ -145,20 +144,11 @@ class AtlasSendScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 22),
               child: SizedBox(
                 width: double.infinity,
-                child: CupertinoSlidingSegmentedControl<SendMode>(
-                  groupValue: vm.sendMode == SendMode.multiple ? SendMode.multiple : SendMode.single,
-                  backgroundColor: theme.surface,
-                  thumbColor: theme.isDark ? theme.muted.withValues(alpha: 0.45) : Colors.white,
-                  padding: const EdgeInsets.all(3),
-                  children: {
-                    SendMode.single: _Segment(t.sendTab.sendModes.single),
-                    SendMode.multiple: _Segment(t.sendTab.sendModes.multiple),
-                  },
-                  onValueChanged: (mode) async {
-                    if (mode != null) {
-                      await vm.onTapSendMode(context, mode);
-                    }
-                  },
+                child: LiquidGlassBar(
+                  floating: false,
+                  items: [LiquidGlassItem(t.sendTab.sendModes.single), LiquidGlassItem(t.sendTab.sendModes.multiple)],
+                  selected: vm.sendMode == SendMode.multiple ? 1 : 0,
+                  onSelect: (i) async => vm.onTapSendMode(context, i == 1 ? SendMode.multiple : SendMode.single),
                 ),
               ),
             ),
@@ -235,24 +225,6 @@ class AtlasSendScreen extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-}
-
-class _Segment extends StatelessWidget {
-  final String label;
-
-  const _Segment(this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = atlasOf(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: theme.text, letterSpacing: -0.2),
-      ),
     );
   }
 }
